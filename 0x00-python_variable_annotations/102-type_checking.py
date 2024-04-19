@@ -5,7 +5,7 @@ Module: 12. Type Checking
 from typing import List, Tuple
 
 
-def zoom_array(input_tuple: Tuple[Any, ...], zoom_factor: int = 2) -> List[Any]:
+def zoom_array(lst: Tuple, factor: int = 2) -> List:
     '''
     Creates multiple copies of items in a tuple based on the given zoom_factor.
 
@@ -18,15 +18,15 @@ def zoom_array(input_tuple: Tuple[Any, ...], zoom_factor: int = 2) -> List[Any]:
     - List[Any]: A list containing multiple copies of the
     items from the input tuple.
     '''
-    zoomed_list: List[Any] = [
-        item for item in input_tuple
-        for _ in range(zoom_factor)
+    zoomed_in: List = [
+        item for item in lst
+        for i in range(int(factor))
     ]
-    return zoomed_list
+    return zoomed_in
 
 
-initial_tuple = (12, 72, 91)
+array = (12, 72, 91)
 
-zoomed_2x_list = zoom_array(initial_tuple)
+zoom_2x = zoom_array(array)
 
-zoomed_3x_list = zoom_array(initial_tuple, 3)
+zoom_3x = zoom_array(array, 3)
