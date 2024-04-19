@@ -10,8 +10,7 @@ Res = Union[Any, T]
 Def = Union[T, None]
 
 
-def safely_get_value(dct: Mapping[Any, T],
-                     key: Any, default: Def = None) -> Res:
+def safely_get_value(dct: Mapping, key: Any, default: Def = None) -> Res:
     '''
     Safely retrieve a value from a dictionary using a given key.
 
