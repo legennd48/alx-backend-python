@@ -1,0 +1,4 @@
+*.main.py
+*~
+__pycache/
+.mypy_cache/
