@@ -4,12 +4,10 @@ This module contains unit tests for the `access_nested_map`,
 `get_json`, and `memoize` functions
 defined in the `utils.py` module.
 '''
-
-import unittest
-from typing import Dict, Tuple, Union
-from unittest.mock import patch, Mock
 from parameterized import parameterized
-
+from typing import Dict, Tuple, Union
+import unittest
+from unittest.mock import patch, Mock
 from utils import (
     access_nested_map,
     get_json,
