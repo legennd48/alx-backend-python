@@ -14,3 +14,13 @@ By completing this project, you will:
 - **Optimize Performance:** Use generators to calculate aggregate functions like averages on large datasets, minimizing memory consumption.
 - **Apply SQL Knowledge:** Use SQL queries to fetch data dynamically, integrating Python with databases for robust data management.
 
+# How to Run the Project
+
+To run `0-main.py`, you must provide your MySQL connection details as environment variables.  
+Use the following command, replacing the placeholders with your actual values:
+
+```sh
+DB_HOST=<your_host> DB_USER=<your_username> DB_PASSWORD=<your_password> DB_NAME=<your_database> python 0-main.py
+```
+
+
