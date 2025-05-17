@@ -2,3 +2,7 @@
 *~
 __pycache/
 .mypy_cache/
+venv/
+python-generators-0x00/user_data.csv
+python-generators-0x00/0-main.py
+python-generators-0x00/__pycache__/seed.cpython-312.pyc
