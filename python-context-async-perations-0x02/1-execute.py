@@ -1,10 +1,16 @@
+"""
+Objective: create a reusable context manager that
+takes a query as input and executes it, managin
+ both connection and the query execution
+"""
+
 import sqlite3
 
 class ExecuteQuery:
     def __init__(self, db_name, query, params=None):
         self.db_name = db_name
         self.query = query
-        self.params = params if params is not None else ()
+        self.params = params if params is not None else (print("No parameters provided"),)
         self.connection = None
         self.cursor = None
         self.result = None
@@ -37,8 +43,8 @@ if __name__ == "__main__":
                 age INTEGER NOT NULL
             )
         """)
-        cursor.execute("INSERT OR IGNORE INTO users (id, name, age) VALUES (1, 'Alice', 30)")
-        cursor.execute("INSERT OR IGNORE INTO users (id, name, age) VALUES (2, 'Bob', 22)")
+        cursor.execute("INSERT OR IGNORE INTO users (id, name, age) VALUES (1, 'Betty', 30)")
+        cursor.execute("INSERT OR IGNORE INTO users (id, name, age) VALUES (2, 'Lea', 22)")
         conn.commit()
 
     # Use the context manager to execute the query
