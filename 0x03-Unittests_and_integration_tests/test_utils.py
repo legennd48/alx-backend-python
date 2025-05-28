@@ -82,7 +82,7 @@ class TestAccessNestedMap(unittest.TestCase):
             description (str): A description of the current test case.
         """
         with self.assertRaises(exception):
-            access_nested_map(eval(nested_map), path), description
+            access_nested_map(eval(nested_map), path)
 
 
 class TestGetJson(unittest.TestCase):
