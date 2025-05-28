@@ -4,3 +4,4 @@ __pycache/
 .mypy_cache/
 venv/
 python-generators-0x00/__pycache__/seed.cpython-312.pyc
+CC.md
