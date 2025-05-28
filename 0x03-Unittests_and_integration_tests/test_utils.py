@@ -25,34 +25,19 @@ class TestAccessNestedMap(unittest.TestCase):
     """
 
     @parameterized.expand([
-        ("{'a': 1}", ("a",), 1, "Retrieves value at top level"),
-        ("{'a': {'b': 2}}", ("a",), {'b': 2},
-         "Retrieves entire nested dictionary"),
-        ("{'a': {'b': 2}}", ("a", "b"), 2,
-         "Retrieves value within nested dictionary"),
+        ("{'a': 1}", ("a",), 1),
+        ("{'a': {'b': 2}}", ("a",), {'b': 2}),
+        ("{'a': {'b': 2}}", ("a", "b"), 2),
     ])
     def test_access_nested_map(
         self,
         nested_map: str,
         path: Tuple[str],
         expected: Union[Dict, int],
-        description: str,
     ) -> None:
-        """Tests `access_nested_map`'s output.
-
-        This test verifies that the function returns the expected
-        value based on the provided nested map, path, and expected output.
-
-        Args:
-            nested_map (str): A string representation of
-            the nested dictionary to access.
-            This is converted to a dictionary before testing.
-            path (Tuple[str]): A tuple representing the path to
-            traverse within the nested map. expected (Union[Dict, int]):
-            description (str): A description of the current test case.
-        """
+        """Tests `access_nested_map`'s output."""
         self.assertEqual(
-            access_nested_map(eval(nested_map), path), expected, description
+            access_nested_map(eval(nested_map), path), expected
         )
 
     @parameterized.expand([
@@ -94,16 +79,13 @@ class TestGetJson(unittest.TestCase):
     """
 
     @parameterized.expand([
-        ("http://example.com", {"payload": True},
-         "Returns JSON payload if successful"),
-        ("http://holberton.io", {"payload": False},
-         "Returns empty dict on unsuccessful request"),
+        ("http://example.com", {"payload": True}),
+        ("http://holberton.io", {"payload": False}),
     ])
     def test_get_json(
         self,
         test_url: str,
         test_payload: Dict,
-        description: str,
     ) -> None:
         """Tests `get_json`'s output.
 
@@ -115,7 +97,6 @@ class TestGetJson(unittest.TestCase):
             test_url (str): The URL to fetch JSON data from.
             test_payload (Dict): The expected payload returned by the
             mocked GET request.
-            description (str): A description of the current test case.
         """
         attrs = {'json.return_value': test_payload}
         with patch("requests.get", return_value=Mock(**attrs)) as req_get:
