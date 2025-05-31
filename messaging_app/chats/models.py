@@ -1,29 +1,42 @@
+import uuid
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 
-# Create your models here.
-
-class UserProfile(models.Model):
-    """A model representing a user's profile information."""
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+class CustomUser(AbstractUser):
+    """
+    Custom user model extending AbstractUser.
+    """
+    user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(unique=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
 
+    REQUIRED_FIELDS = ['email', 'first_name', 'last_name']
+
     def __str__(self):
-        return self.user.username
+        return self.username
 
 class Conversation(models.Model):
-    """"A model representing a conversation between users."""
-    participants = models.ManyToManyField(User, related_name='conversations')
+    """
+    Model representing a conversation between users.
+    """
+    conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participants = models.ManyToManyField('CustomUser', related_name='conversations')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        """Return a string representation of the conversation."""
-        return f"Conversation between {', '.join([user.username for user in self.participants.all()])}"
+        return f"Conversation {self.conversation_id}"
 
 class Message(models.Model):
-    """A model representing a message in a conversation."""
+    """
+    Model representing a message in a conversation.
+    """
+    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
-    sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
+    sender = models.ForeignKey('CustomUser', related_name='sent_messages', on_delete=models.CASCADE)
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Message {self.message_id} by {self.sender.username}"
