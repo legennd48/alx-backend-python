@@ -8,6 +8,7 @@ class CustomUser(AbstractUser):
     """
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
+    password = models.CharField(max_length=128, verbose_name='password')
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     profile_picture = models.ImageField(upload_to='profile_pictures/', blank=True, null=True)
