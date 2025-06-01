@@ -37,18 +37,20 @@ class TestAccessNestedMap(unittest.TestCase):
     ) -> None:
         """Tests `access_nested_map`'s output."""
         self.assertEqual(
-            access_nested_map(nested_map, path), expected
+            access_nested_map(eval(nested_map), path), expected
         )
 
     @parameterized.expand([
-        ("{}", ("a",), KeyError),
-        ("{'a': 1}", ("a", "b"), KeyError),
+        ("{}", ("a",), KeyError, "Raises KeyError for missing top-level key"),
+        ("{'a': 1}", ("a", "b"), KeyError,
+         "Raises KeyError for missing nested key"),
     ])
     def test_access_nested_map_exception(
         self,
         nested_map: str,
         path: Tuple[str],
-        exception: Exception
+        exception: Exception,
+        description: str,
     ) -> None:
         """Tests `access_nested_map`'s exception raising.
 
@@ -65,7 +67,7 @@ class TestAccessNestedMap(unittest.TestCase):
             description (str): A description of the current test case.
         """
         with self.assertRaises(exception):
-            access_nested_map(nested_map, path)
+            access_nested_map(eval(nested_map), path)
 
 
 class TestGetJson(unittest.TestCase):
