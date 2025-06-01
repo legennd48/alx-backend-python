@@ -25,54 +25,43 @@ class TestAccessNestedMap(unittest.TestCase):
     """
 
     @parameterized.expand([
-        ("{'a': 1}", ("a",), 1),
-        ("{'a': {'b': 2}}", ("a",), {'b': 2}),
-        ("{'a': {'b': 2}}", ("a", "b"), 2),
+        ({"a": 1}, ("a",), 1),
+        ({"a": {"b": 2}}, ("a",), {"b": 2}),
+        ({"a": {"b": 2}}, ("a", "b"), 2),
     ])
     def test_access_nested_map(
         self,
-        nested_map: str,
+        nested_map: Dict,
         path: Tuple[str],
         expected: Union[Dict, int],
     ) -> None:
         """Tests `access_nested_map`'s output."""
         self.assertEqual(
-            access_nested_map(eval(nested_map), path), expected
+            access_nested_map(nested_map, path), expected
         )
 
     @parameterized.expand([
-        ("{}", ("a",), KeyError, "Raises KeyError for missing top-level key"),
-        ("{'a': 1}", ("a", "b"), KeyError,
-         "Raises KeyError for missing nested key"),
+        ({}, ("a",), KeyError),
+        ({"a": 1}, ("a", "b"), KeyError),
     ])
     def test_access_nested_map_exception(
         self,
-        nested_map: str,
+        nested_map: Dict,
         path: Tuple[str],
         exception: Exception,
-        description: str,
     ) -> None:
         """Tests `access_nested_map`'s exception raising.
 
         This test verifies that the function raises the
         appropriate exception (KeyError)
         when the requested key is not found in the nested map.
-        Args:
-            nested_map (str): A string representation of the nested
-            dictionary to access.
-            This is converted to a dictionary before testing.
-            path (Tuple[str]): A tuple representing the path to
-            traverse within the nested map.
-            exception (Exception): The expected exception to be raised.
-            description (str): A description of the current test case.
         """
         with self.assertRaises(exception):
-            access_nested_map(eval(nested_map), path)
+            access_nested_map(nested_map, path)
 
 
 class TestGetJson(unittest.TestCase):
     """
-
     This class provides unit tests to verify that `get_json`
     makes a GET request to the provided URL and returns
     the parsed JSON data.
@@ -92,11 +81,6 @@ class TestGetJson(unittest.TestCase):
         This test verifies that the function returns the expected
         data (payload or empty dict)
         based on the mocked response of the GET request.
-
-        Args:
-            test_url (str): The URL to fetch JSON data from.
-            test_payload (Dict): The expected payload returned by the
-            mocked GET request.
         """
         attrs = {'json.return_value': test_payload}
         with patch("requests.get", return_value=Mock(**attrs)) as req_get:
@@ -131,9 +115,9 @@ class TestMemoize(unittest.TestCase):
         with patch.object(
             TestClass,
             "a_method",
-            return_value=lambda: 42,
+            return_value=42,
         ) as memo_fxn:
             test_class = TestClass()
-            self.assertEqual(test_class.a_property(), 42)
-            self.assertEqual(test_class.a_property(), 42)
+            self.assertEqual(test_class.a_property, 42)
+            self.assertEqual(test_class.a_property, 42)
             memo_fxn.assert_called_once()
