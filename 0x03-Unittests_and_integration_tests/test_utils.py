@@ -37,7 +37,7 @@ class TestAccessNestedMap(unittest.TestCase):
     ) -> None:
         """Tests `access_nested_map`'s output."""
         self.assertEqual(
-            access_nested_map(eval(nested_map), path), expected
+            access_nested_map(nested_map, path), expected
         )
 
     @parameterized.expand([
