@@ -4,13 +4,14 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Conversation, Message, CustomUser
 from .serializers import ConversationSerializer, MessageSerializer
+from .permissions import IsParticipantOrSender
 
 # Create your views here.
 
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsParticipantOrSender]
     filter_backends = [filters.SearchFilter]
     search_fields = ['participants__username', 'participants__email']
 
@@ -28,7 +29,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsParticipantOrSender]
     filter_backends = [filters.SearchFilter]
     search_fields = ['message_body', 'sender__username']
 
