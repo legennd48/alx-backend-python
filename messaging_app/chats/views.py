@@ -11,8 +11,6 @@ from .permissions import IsParticipantOrSender
 from .filters import MessageFilter # Import your custom filter
 from .pagination import StandardMessagePagination # Import your custom pagination
 
-# Create your views here.
-
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
@@ -38,7 +36,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         return Conversation.objects.none()
 
 class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all().order_by('-created_at') # Good to have a default ordering
+    queryset = Message.objects.all().order_by('-sent_at') # Change 'created_at' to 'sent_at'
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsParticipantOrSender]
     
@@ -60,7 +58,6 @@ class MessageViewSet(viewsets.ModelViewSet):
         except Conversation.DoesNotExist:
             return Response({'detail': 'Conversation not found.'}, status=status.HTTP_404_NOT_FOUND)
         
-        # Added check from your perform_create logic here for consistency
         if request.user not in conversation.participants.all():
             raise PermissionDenied("You are not a participant in this conversation and cannot send messages here.")
 
@@ -75,12 +72,11 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            # Filter messages to only those in conversations the user is part of
-            return Message.objects.filter(conversation__participants=user).distinct().order_by('-created_at')
+            return Message.objects.filter(conversation__participants=user).distinct().order_by('-sent_at') # This one was likely changed correctly
         return Message.objects.none()
 
-       def perform_create(self, serializer):
+    def perform_create(self, serializer):
         conversation = serializer.validated_data.get('conversation')
         if self.request.user not in conversation.participants.all():
-            raise PermissionDenied("You are not a participant in this conversation.") # <--- FULFILLS HTTP_403_FORBIDDEN
+            raise PermissionDenied("You are not a participant in this conversation.")
         serializer.save(sender=self.request.user)
