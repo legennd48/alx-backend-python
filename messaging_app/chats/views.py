@@ -26,8 +26,14 @@ class ConversationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(conversation)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return user.conversations.all()
+        return Conversation.objects.none()
+
 class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all()
+    queryset = Message.objects.all() # Base queryset
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsParticipantOrSender]
     filter_backends = [filters.SearchFilter]
@@ -49,3 +55,10 @@ class MessageViewSet(viewsets.ModelViewSet):
         )
         serializer = self.get_serializer(message)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            # Example: Filter messages to only those in conversations the user is part of
+            return Message.objects.filter(conversation__participants=user).distinct()
+        return Message.objects.none() # Or handle unauthenticated as per your app's logic
