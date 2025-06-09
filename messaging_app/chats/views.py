@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied # For HTTP_403_FORBIDDEN
 from .models import Conversation, Message, CustomUser
 from .serializers import ConversationSerializer, MessageSerializer
 from .permissions import IsParticipantOrSender
@@ -62,3 +63,9 @@ class MessageViewSet(viewsets.ModelViewSet):
             # Example: Filter messages to only those in conversations the user is part of
             return Message.objects.filter(conversation__participants=user).distinct()
         return Message.objects.none() # Or handle unauthenticated as per your app's logic
+
+    def perform_create(self, serializer):
+        conversation = serializer.validated_data.get('conversation')
+        if self.request.user not in conversation.participants.all():
+            raise PermissionDenied("You are not a participant in this conversation.") # <--- FULFILLS HTTP_403_FORBIDDEN
+        serializer.save(sender=self.request.user)
