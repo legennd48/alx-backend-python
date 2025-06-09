@@ -142,8 +142,8 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'chats.pagination.StandardMessagePagination', # Sets default pagination
-    'PAGE_SIZE': 20, # Default page size if not overridden by pagination_class
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination', # Ensures "PageNumberPagination" is present
+    'PAGE_SIZE': 20, # This will be the default page size if using the base class directly
 }
 
 # Celery Configuration

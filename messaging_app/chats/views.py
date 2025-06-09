@@ -41,7 +41,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsParticipantOrSender]
     
     # Pagination
-    pagination_class = StandardMessagePagination # Apply your custom pagination
+    pagination_class = StandardMessagePagination # Explicitly use your custom class here
 
     # Filtering and Searching
     filter_backends = [DjangoFilterBackend, filters.SearchFilter] # Add DjangoFilterBackend
