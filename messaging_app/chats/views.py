@@ -3,9 +3,13 @@ from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied # For HTTP_403_FORBIDDEN
+from django_filters.rest_framework import DjangoFilterBackend # Import DjangoFilterBackend
+
 from .models import Conversation, Message, CustomUser
 from .serializers import ConversationSerializer, MessageSerializer
 from .permissions import IsParticipantOrSender
+from .filters import MessageFilter # Import your custom filter
+from .pagination import StandardMessagePagination # Import your custom pagination
 
 # Create your views here.
 
@@ -34,11 +38,17 @@ class ConversationViewSet(viewsets.ModelViewSet):
         return Conversation.objects.none()
 
 class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all() # Base queryset
+    queryset = Message.objects.all().order_by('-created_at') # Good to have a default ordering
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated, IsParticipantOrSender]
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['message_body', 'sender__username']
+    
+    # Pagination
+    pagination_class = StandardMessagePagination # Apply your custom pagination
+
+    # Filtering and Searching
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter] # Add DjangoFilterBackend
+    filterset_class = MessageFilter # Specify your custom filter class
+    search_fields = ['message_body', 'sender__username'] # Keep existing search functionality
 
     def create(self, request, *args, **kwargs):
         conversation_id = request.data.get('conversation')
@@ -49,6 +59,11 @@ class MessageViewSet(viewsets.ModelViewSet):
             conversation = Conversation.objects.get(conversation_id=conversation_id)
         except Conversation.DoesNotExist:
             return Response({'detail': 'Conversation not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Added check from your perform_create logic here for consistency
+        if request.user not in conversation.participants.all():
+            raise PermissionDenied("You are not a participant in this conversation and cannot send messages here.")
+
         message = Message.objects.create(
             conversation=conversation,
             sender=request.user,
@@ -60,11 +75,11 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
-            # Example: Filter messages to only those in conversations the user is part of
-            return Message.objects.filter(conversation__participants=user).distinct()
-        return Message.objects.none() # Or handle unauthenticated as per your app's logic
+            # Filter messages to only those in conversations the user is part of
+            return Message.objects.filter(conversation__participants=user).distinct().order_by('-created_at')
+        return Message.objects.none()
 
-    def perform_create(self, serializer):
+       def perform_create(self, serializer):
         conversation = serializer.validated_data.get('conversation')
         if self.request.user not in conversation.participants.all():
             raise PermissionDenied("You are not a participant in this conversation.") # <--- FULFILLS HTTP_403_FORBIDDEN
