@@ -1,0 +1,492 @@
+{
+    "info": {
+        "_postman_id": "YOUR_UNIQUE_COLLECTION_ID",
+        "name": "Messaging App API (ALX)",
+        "description": "Postman collection for testing the Django Messaging App API.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Register User 1",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"user1_test\",\n    \"password\": \"strongPassword123!\",\n    \"email\": \"user1@example.com\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"UserOne\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/register/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "register",
+                                ""
+                            ]
+                        },
+                        "description": "Registers a new user (User 1). After registration, manually find this user's UUID (user_id) from your database and update the `user1_uuid_to_replace` collection variable."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Register User 2",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"user2_test\",\n    \"password\": \"strongPassword456!\",\n    \"email\": \"user2@example.com\",\n    \"first_name\": \"Another\",\n    \"last_name\": \"UserTwo\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/register/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "register",
+                                ""
+                            ]
+                        },
+                        "description": "Registers another new user (User 2). After registration, manually find this user's UUID (user_id) from your database and update the `user2_uuid_to_replace` collection variable."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login User (Sets Access Token)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "",
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.access) {",
+                                    "    pm.collectionVariables.set(\"accessToken\", jsonData.access);",
+                                    "    console.log(\"Access Token set: \" + jsonData.access);",
+                                    "} else {",
+                                    "    console.error(\"Access token not found in login response.\");",
+                                    "}",
+                                    "if (jsonData.refresh) {",
+                                    "    pm.collectionVariables.set(\"refreshToken\", jsonData.refresh);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"username\": \"user1_test\", \n    \"password\": \"strongPassword123!\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/login/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "login",
+                                ""
+                            ]
+                        },
+                        "description": "Logs in a user (e.g., User 1) and saves the JWT access token to the `accessToken` collection variable."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Refresh Token",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 200\", function () {",
+                                    "    pm.response.to.have.status(200);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.access) {",
+                                    "    pm.collectionVariables.set(\"accessToken\", jsonData.access);",
+                                    "    console.log(\"New Access Token set from refresh: \" + jsonData.access);",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"refresh\": \"{{refreshToken}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/token/refresh/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "token",
+                                "refresh",
+                                ""
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ],
+            "description": "User authentication endpoints."
+        },
+        {
+            "name": "Conversations",
+            "item": [
+                {
+                    "name": "Create Conversation",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 201\", function () {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});",
+                                    "var jsonData = pm.response.json();",
+                                    "if (jsonData.conversation_id) {",
+                                    "    pm.collectionVariables.set(\"conversationId\", jsonData.conversation_id);",
+                                    "    console.log(\"Conversation ID set: \" + jsonData.conversation_id);",
+                                    "} else {",
+                                    "    console.error(\"conversation_id not found in create conversation response.\");",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"participants\": [\n        \"{{user1_uuid_to_replace}}\", \n        \"{{user2_uuid_to_replace}}\"\n    ]\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/conversations/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "conversations",
+                                ""
+                            ]
+                        },
+                        "description": "Creates a new conversation between specified participants. \n**IMPORTANT**: Update `user1_uuid_to_replace` and `user2_uuid_to_replace` collection variables with actual user UUIDs obtained after registration."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Conversations",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/conversations/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "conversations",
+                                ""
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Retrieve Conversation",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/conversations/{{conversationId}}/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "conversations",
+                                "{{conversationId}}",
+                                ""
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Conversations (Unauthorized)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test(\"Status code is 401 (Unauthorized)\", function () {",
+                                    "    pm.response.to.have.status(401);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/conversations/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "conversations",
+                                ""
+                            ]
+                        },
+                        "description": "Attempts to list conversations without authentication to test protection."
+                    },
+                    "response": []
+                }
+            ],
+            "auth": {
+                "type": "bearer",
+                "bearer": [
+                    {
+                        "key": "token",
+                        "value": "{{accessToken}}",
+                        "type": "string"
+                    }
+                ]
+            },
+            "description": "Endpoints for managing conversations."
+        },
+        {
+            "name": "Messages",
+            "item": [
+                {
+                    "name": "Send Message",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"conversation\": \"{{conversationId}}\",\n    \"message_body\": \"Hello from Postman! This is a test message.\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/messages/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "messages",
+                                ""
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Messages (Paginated)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/messages/?page=1&page_size=5",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "messages",
+                                ""
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "page_size",
+                                    "value": "5"
+                                }
+                            ]
+                        },
+                        "description": "Lists all accessible messages, paginated. Change page and page_size as needed."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Messages (Filtered by Conversation)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/messages/?conversation={{conversationId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "messages",
+                                ""
+                            ],
+                            "query": [
+                                {
+                                    "key": "conversation",
+                                    "value": "{{conversationId}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Messages (Filtered by Time Range)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/messages/?created_at_after=2023-01-01T00:00:00Z&created_at_before=2025-12-31T23:59:59Z",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "messages",
+                                ""
+                            ],
+                            "query": [
+                                {
+                                    "key": "created_at_after",
+                                    "value": "2023-01-01T00:00:00Z"
+                                },
+                                {
+                                    "key": "created_at_before",
+                                    "value": "2025-12-31T23:59:59Z"
+                                }
+                            ]
+                        },
+                        "description": "Filters messages sent within a specific time range. Adjust datetimes as needed."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Messages (Filtered by Conversation Participant)",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/messages/?conversation_participant={{user1_uuid_to_replace}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "messages",
+                                ""
+                            ],
+                            "query": [
+                                {
+                                    "key": "conversation_participant",
+                                    "value": "{{user1_uuid_to_replace}}"
+                                }
+                            ]
+                        },
+                        "description": "Filters messages from conversations where the specified user is a participant. Ensure `user1_uuid_to_replace` is set."
+                    },
+                    "response": []
+                }
+            ],
+            "auth": {
+                "type": "bearer",
+                "bearer": [
+                    {
+                        "key": "token",
+                        "value": "{{accessToken}}",
+                        "type": "string"
+                    }
+                ]
+            },
+            "description": "Endpoints for sending and retrieving messages."
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:8000/api",
+            "type": "string"
+        },
+        {
+            "key": "accessToken",
+            "value": "",
+            "type": "string",
+            "description": "Automatically set by the 'Login User' request."
+        },
+        {
+            "key": "refreshToken",
+            "value": "",
+            "type": "string"
+        },
+        {
+            "key": "conversationId",
+            "value": "",
+            "type": "string",
+            "description": "Automatically set by the 'Create Conversation' request."
+        },
+        {
+            "key": "user1_uuid_to_replace",
+            "value": "REPLACE_WITH_USER1_UUID_AFTER_REGISTRATION",
+            "type": "string",
+            "description": "Manually update this with the user_id (UUID) of User 1 after registration."
+        },
+        {
+            "key": "user2_uuid_to_replace",
+            "value": "REPLACE_WITH_USER2_UUID_AFTER_REGISTRATION",
+            "type": "string",
+            "description": "Manually update this with the user_id (UUID) of User 2 after registration."
+        }
+    ]
+}
