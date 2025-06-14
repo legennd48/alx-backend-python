@@ -13,3 +13,12 @@ class MessagingSignalTest(TestCase):
         msg = Message.objects.create(sender=self.alice, receiver=self.bob, content="Hello Bob!")
         notif = Notification.objects.get(user=self.bob, message=msg)
         self.assertFalse(notif.is_read)
+
+    def test_message_edit_creates_history(self):
+        msg = Message.objects.create(sender=self.alice, receiver=self.bob, content="Original")
+        msg.content = "Edited"
+        msg.save()
+        history = msg.history.first()
+        self.assertIsNotNone(history)
+        self.assertEqual(history.old_content, "Original")
+        self.assertTrue(msg.edited)
