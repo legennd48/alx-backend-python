@@ -1,6 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
-from .models import Message, Notification
+from .models import Message, Notification, MessageHistory
 
 User = get_user_model()
 
@@ -22,3 +22,12 @@ class MessagingSignalTest(TestCase):
         self.assertIsNotNone(history)
         self.assertEqual(history.old_content, "Original")
         self.assertTrue(msg.edited)
+
+    def test_user_deletion_cleans_up_related_data(self):
+        msg = Message.objects.create(sender=self.alice, receiver=self.bob, content="Bye")
+        notif = Notification.objects.create(user=self.bob, message=msg)
+        history = MessageHistory.objects.create(message=msg, old_content="Old")
+        self.alice.delete()
+        self.assertFalse(Message.objects.filter(pk=msg.pk).exists())
+        self.assertFalse(Notification.objects.filter(pk=notif.pk).exists())
+        self.assertFalse(MessageHistory.objects.filter(pk=history.pk).exists())

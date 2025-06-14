@@ -21,6 +21,7 @@ from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from chats.auth import RegisterView, LoginView, LogoutView
+from messaging.views import delete_user
 
 schema_view = get_schema_view(
    openapi.Info(
@@ -43,4 +44,5 @@ urlpatterns = [
     path('api/register/', RegisterView.as_view(), name='register'),
     path('api/login/', LoginView.as_view(), name='login'),
     path('api/logout/', LogoutView.as_view(), name='logout'),
+    path('api/delete_user/', delete_user, name='delete_user'),
 ]
