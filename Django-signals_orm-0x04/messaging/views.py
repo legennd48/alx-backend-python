@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.http import HttpResponseForbidden
+from django.db.models import Q
 
 from .models import Message
 
@@ -27,10 +28,12 @@ def get_thread(message):
     return thread
 
 def threaded_conversations_view(request):
-    # Fetch all top-level messages efficiently
-    messages = Message.objects.filter(parent_message__isnull=True) \
-        .select_related('sender', 'receiver') \
-        .prefetch_related('replies__sender', 'replies__receiver')
+    # Only show threads where the user is the sender or receiver
+    messages = Message.objects.filter(
+        Q(sender=request.user) | Q(receiver=request.user),
+        parent_message__isnull=True
+    ).select_related('sender', 'receiver') \
+     .prefetch_related('replies__sender', 'replies__receiver')
     # Build threads for each top-level message
     threads = []
     for msg in messages:
