@@ -13,3 +13,14 @@ def delete_user(request):
         user.delete()
         return redirect('logout')
     return HttpResponseForbidden("Only POST allowed")
+
+def get_thread(message):
+    """Recursively get all replies to a message in a threaded format."""
+    thread = []
+    for reply in message.replies.all().select_related('sender', 'receiver'):
+        thread.append({
+            'message': reply,
+            'replies': get_thread(reply)
+        })
+    return thread
+
