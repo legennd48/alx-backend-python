@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.http import HttpResponseForbidden
 from django.db.models import Q
+from django.views.decorators.cache import cache_page
 
 from .models import Message
 
@@ -47,4 +48,9 @@ def threaded_conversations_view(request):
 def unread_inbox(request):
     unread_messages = Message.unread.unread_for_user(request.user).only('id', 'sender', 'content', 'timestamp')
     return render(request, "messaging/unread_inbox.html", {"unread_messages": unread_messages})
+
+@cache_page(60)  # Cache this view for 60 seconds
+def conversation_messages(request, conversation_id):
+    messages = Message.objects.filter(parent_message__isnull=True, receiver=request.user)
+    return render(request, "chats/conversation_messages.html", {"messages": messages})
 
