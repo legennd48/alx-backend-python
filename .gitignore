@@ -6,3 +6,5 @@ venv/
 python-generators-0x00/__pycache__/seed.cpython-312.pyc
 CC.md
 django_app/
+messaging_app/.env
+.env
