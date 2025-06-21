@@ -1,5 +1,12 @@
 FROM python:3.10
 
+# Install system dependencies for MySQL
+RUN apt-get update && apt-get install -y \
+    default-libmysqlclient-dev \
+    gcc \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory
 WORKDIR /messaging_app
 
@@ -9,14 +16,14 @@ COPY requirements.txt .
 # Install the dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy .env file (should be in same directory now)
+COPY .env .
+
 # Copy the rest of the application code into the container
 COPY . .
 
 # Copy .env file
 COPY ../.env .
-
-# Run migrations as root to create database
-RUN python manage.py migrate
 
 # Add a non-root user to run the application:
 RUN adduser --disabled-password --gecos '' appuser && \
@@ -29,5 +36,5 @@ USER appuser
 # Expose the port the app runs on
 EXPOSE 8000
 
-# Command to run the application
+# Command to run the application (migrations will run via docker-compose)
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

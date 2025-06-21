@@ -14,6 +14,7 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+from django.core.management.utils import get_random_secret_key
 
 # Load environment variables from .env file
 load_dotenv()
@@ -84,8 +85,15 @@ WSGI_APPLICATION = 'messaging_app.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('MYSQL_DATABASE', 'messaging_db'),
+        'USER': os.getenv('MYSQL_USER', 'messaging_user'),
+        'PASSWORD': os.getenv('MYSQL_PASSWORD', 'secure_password_here'),
+        'HOST': os.getenv('DB_HOST', 'db'),  # 'db' is the service name in docker-compose
+        'PORT': os.getenv('DB_PORT', '3306'),
+        'OPTIONS': {
+            'sql_mode': 'traditional',
+        }
     }
 }
 

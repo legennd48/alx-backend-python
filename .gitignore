@@ -1,6 +1,7 @@
 *.main.py
 *~
 __pycache/
+__pycache__/
 .mypy_cache/
 venv/
 python-generators-0x00/__pycache__/seed.cpython-312.pyc
