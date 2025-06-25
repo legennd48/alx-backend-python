@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: django-rolling-service
+  labels:
+    app: django-messaging-app
+    strategy: rolling-update
+spec:
+  selector:
+    app: django-messaging-app
+    version: blue
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: ClusterIP

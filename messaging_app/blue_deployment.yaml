@@ -64,7 +64,12 @@ metadata:
     app: django-messaging-app
     version: blue
 spec:
-  replicas: 1
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
       app: django-messaging-app
@@ -81,7 +86,7 @@ spec:
         command: ['sh', '-c', 'until nc -z db 3306; do echo waiting for db; sleep 2; done;']
       containers:
       - name: django-app
-        image: messaging-app:latest
+        image: messaging-app:2.0
         imagePullPolicy: Never
         ports:
         - containerPort: 8000
