@@ -3,39 +3,122 @@
 ## 1. Start Minikube
 minikube start
 
-## 2. Apply Deployment and Service Configuration
-kubectl apply -f deployment.yaml
-
-## 3. Enable NGINX Ingress Controller
+## 2. Enable NGINX Ingress Controller
 minikube addons enable ingress
 
-## 4. Apply Ingress Configuration
+## 3. Initial Blue Deployment
+kubectl apply -f blue_deployment.yaml
+
+## 4. Apply Service Configuration for Blue-Green Deployment
+kubectl apply -f kubeservice.yaml
+
+## 5. Apply Ingress Configuration
 kubectl apply -f ingress.yaml
 
-## 5. Update ALLOWED_HOSTS for Django App
-kubectl set env deployment/django-messaging-app ALLOWED_HOSTS="localhost,127.0.0.1,messaging-app.local,192.168.49.2"
+## 6. Update /etc/hosts for Local Testing
+echo "192.168.49.2 messaging-app.local api.messaging-app.local" | sudo tee -a /etc/hosts
 
-## 6. Scale the Application (using custom script)
+## 7. Blue-Green Deployment Commands
+
+### Deploy Green Version (Automated)
+./kubctl-0x02 deploy
+
+### Manual Green Deployment Steps
+kubectl apply -f green_deployment.yaml
+./kubctl-0x02 health-check django-messaging-service-green-test
+./kubctl-0x02 switch green
+
+### Switch Traffic Between Versions
+./kubctl-0x02 switch blue    # Switch to blue
+./kubctl-0x02 switch green   # Switch to green
+
+### Rollback to Previous Version
+./kubctl-0x02 rollback
+
+### Check Deployment Status
+./kubctl-0x02 status
+
+### View Logs
+./kubctl-0x02 logs blue 100   # View blue version logs (last 100 lines)
+./kubctl-0x02 logs green 50   # View green version logs (last 50 lines)
+
+### Performance Testing
+./kubctl-0x02 test 60 20      # Run test for 60s with 20 connections
+
+### Health Checks
+./kubctl-0x02 health-check django-messaging-service
+./kubctl-0x02 health-check django-messaging-service-green-test
+
+### Cleanup Old Version
+./kubctl-0x02 cleanup blue    # Remove blue version after successful green deployment
+./kubctl-0x02 cleanup green   # Remove green version if rollback to blue
+
+## 8. Scaling Commands (Legacy Script)
 ./kubctl-0x01
 
-## 7. Check Status Commands
-kubectl get pods
-kubectl get services
-kubectl get ingress
-kubectl describe ingress django-messaging-ingress
+## 9. Manual Kubernetes Commands
 
-## 8. Test the Application
-# Add to /etc/hosts: 192.168.49.2 messaging-app.local
+### Check Status
+kubectl get pods -l app=django-messaging-app
+kubectl get services -l app=django-messaging-app
+kubectl get ingress
+kubectl get deployments -l app=django-messaging-app
+
+### Detailed Status
+kubectl describe ingress django-messaging-ingress
+kubectl describe service django-messaging-service
+kubectl get pods -l app=django-messaging-app -o wide
+
+### Manual Traffic Switching
+kubectl patch service django-messaging-service -p '{"spec":{"selector":{"app":"django-messaging-app","version":"green"}}}'
+kubectl patch service django-messaging-service -p '{"spec":{"selector":{"app":"django-messaging-app","version":"blue"}}}'
+
+## 10. Testing Commands
+
+### Test Ingress Endpoints
+curl -H "Host: messaging-app.local" http://192.168.49.2/
 curl -H "Host: messaging-app.local" http://192.168.49.2/api/
 curl -H "Host: messaging-app.local" http://192.168.49.2/admin/
 curl -H "Host: messaging-app.local" http://192.168.49.2/swagger/
 
-## 9. Troubleshooting Commands
-kubectl logs pod/django-messaging-app-<pod-id>
-kubectl logs -n ingress-nginx ingress-nginx-controller-<controller-id>
-kubectl exec -it pod/django-messaging-app-<pod-id> -- curl http://localhost:8000/api/
+### Test Direct Service Access
+kubectl run test-pod --image=curlimages/curl --rm -i --restart=Never -- curl http://django-messaging-service/admin/
 
-## 10. Clean Up Commands
+### Load Testing
+kubectl run load-test --image=williamyeh/wrk --rm -i --restart=Never -- -t4 -c10 -d30s http://django-messaging-service/admin/
+
+## 11. Troubleshooting Commands
+
+### Check Pod Logs
+kubectl logs -l app=django-messaging-app,version=blue --tail=50
+kubectl logs -l app=django-messaging-app,version=green --tail=50
+
+### Check Ingress Controller Logs
+kubectl logs -n ingress-nginx deployment/ingress-nginx-controller
+
+### Debug Pod Issues
+kubectl describe pod <pod-name>
+kubectl exec -it <pod-name> -- /bin/bash
+
+### Check Service Endpoints
+kubectl get endpoints django-messaging-service
+kubectl get endpoints django-messaging-service-green-test
+
+### Check Resource Usage
+kubectl top nodes
+kubectl top pods -l app=django-messaging-app
+
+## 12. Clean Up Commands
+
+### Clean Up Deployments
+kubectl delete -f green_deployment.yaml
+kubectl delete -f blue_deployment.yaml
+kubectl delete -f kubeservice.yaml
 kubectl delete -f ingress.yaml
-kubectl delete -f deployment.yaml
+
+### Clean Up Test Pods
+kubectl delete pod --field-selector=status.phase==Succeeded
+
+### Full Clean Up
+kubectl delete all -l app=django-messaging-app
 minikube stop

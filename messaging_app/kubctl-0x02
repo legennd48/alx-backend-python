@@ -1,0 +1,396 @@
+#!/bin/bash
+
+# Blue-Green Deployment Automation Script for Django Messaging App
+# This script automates the complete blue-green deployment process including:
+# - Health checks
+# - Traffic switching
+# - Rollback capabilities
+# - Zero-downtime deployment
+
+set -e  # Exit on any error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Configuration
+NAMESPACE=${NAMESPACE:-default}
+APP_NAME="django-messaging-app"
+SERVICE_NAME="django-messaging-service"
+GREEN_TEST_SERVICE="django-messaging-service-green-test"
+BLUE_SERVICE="django-messaging-service-blue"
+HEALTH_CHECK_PATH="/admin/"
+TIMEOUT=300  # 5 minutes timeout
+CHECK_INTERVAL=10
+
+# Print colored output
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if a command exists
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        print_error "$1 not found. Please install it."
+        exit 1
+    fi
+}
+
+# Wait for deployment to be ready
+wait_for_deployment() {
+    local deployment_name=$1
+    local timeout=$2
+    local elapsed=0
+    
+    print_status "Waiting for deployment $deployment_name to be ready..."
+    
+    while [ $elapsed -lt $timeout ]; do
+        if kubectl get deployment "$deployment_name" -n "$NAMESPACE" &> /dev/null; then
+            local ready=$(kubectl get deployment "$deployment_name" -n "$NAMESPACE" -o jsonpath='{.status.readyReplicas}')
+            local desired=$(kubectl get deployment "$deployment_name" -n "$NAMESPACE" -o jsonpath='{.spec.replicas}')
+            
+            if [ "$ready" = "$desired" ] && [ "$ready" != "0" ]; then
+                print_success "Deployment $deployment_name is ready ($ready/$desired pods)"
+                return 0
+            fi
+        fi
+        
+        sleep $CHECK_INTERVAL
+        elapsed=$((elapsed + CHECK_INTERVAL))
+        print_status "Waiting... ($elapsed/${timeout}s)"
+    done
+    
+    print_error "Timeout waiting for deployment $deployment_name"
+    return 1
+}
+
+# Health check function
+health_check() {
+    local service_name=$1
+    local max_attempts=${2:-6}
+    local attempt=1
+    
+    print_status "Performing health check on service $service_name..."
+    
+    # Get service IP
+    local service_ip=$(kubectl get service "$service_name" -n "$NAMESPACE" -o jsonpath='{.spec.clusterIP}' 2>/dev/null)
+    if [ -z "$service_ip" ]; then
+        print_error "Could not get IP for service $service_name"
+        return 1
+    fi
+    
+    while [ $attempt -le $max_attempts ]; do
+        print_status "Health check attempt $attempt/$max_attempts for $service_name ($service_ip)"
+        
+        # Use kubectl run for health check
+        if kubectl run health-check-$RANDOM --image=curlimages/curl --rm -i --restart=Never --timeout=30s \
+           -- curl -s -f "http://$service_ip$HEALTH_CHECK_PATH" > /dev/null 2>&1; then
+            print_success "Health check passed for $service_name"
+            return 0
+        fi
+        
+        sleep 10
+        attempt=$((attempt + 1))
+    done
+    
+    print_error "Health check failed for $service_name after $max_attempts attempts"
+    return 1
+}
+
+# Get current active version
+get_current_version() {
+    kubectl get service "$SERVICE_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.selector.version}' 2>/dev/null || echo "unknown"
+}
+
+# Switch traffic between blue and green
+switch_traffic() {
+    local target_version=$1
+    
+    print_status "Switching traffic to $target_version version..."
+    
+    # Update service selector to point to target version
+    kubectl patch service "$SERVICE_NAME" -n "$NAMESPACE" -p "{\"spec\":{\"selector\":{\"app\":\"$APP_NAME\",\"version\":\"$target_version\"}}}"
+    
+    # Update service annotation to track current version
+    kubectl annotate service "$SERVICE_NAME" -n "$NAMESPACE" "current.version=$target_version" --overwrite
+    
+    # Wait a moment for the service to update
+    sleep 5
+    
+    print_success "Traffic switched to $target_version version"
+}
+
+# Show deployment status
+show_status() {
+    print_status "Current deployment status:"
+    echo
+    
+    # Show current service routing
+    local current_version=$(get_current_version)
+    print_status "Current active version: $current_version"
+    
+    # Show deployments
+    echo
+    kubectl get deployments -l app="$APP_NAME" -n "$NAMESPACE" -o wide 2>/dev/null || true
+    
+    # Show pods
+    echo
+    kubectl get pods -l app="$APP_NAME" -n "$NAMESPACE" -o wide 2>/dev/null || true
+    
+    # Show services
+    echo
+    kubectl get services -l app="$APP_NAME" -n "$NAMESPACE" -o wide 2>/dev/null || true
+}
+
+# Deploy green version
+deploy_green() {
+    print_status "Deploying green version..."
+    
+    # Apply green deployment
+    if [ -f "green_deployment.yaml" ]; then
+        kubectl apply -f green_deployment.yaml -n "$NAMESPACE"
+        
+        # Wait for green deployment to be ready
+        if wait_for_deployment "$APP_NAME-green" $TIMEOUT; then
+            print_success "Green deployment is ready"
+            
+            # Apply services for testing
+            if [ -f "kubeservice.yaml" ]; then
+                kubectl apply -f kubeservice.yaml -n "$NAMESPACE"
+                sleep 10  # Wait for service to be ready
+                
+                # Health check green deployment
+                if health_check "$GREEN_TEST_SERVICE"; then
+                    print_success "Green deployment passed health checks"
+                    return 0
+                else
+                    print_error "Green deployment failed health checks"
+                    return 1
+                fi
+            else
+                print_warning "kubeservice.yaml not found, skipping service creation"
+                return 1
+            fi
+        else
+            print_error "Green deployment failed to become ready"
+            return 1
+        fi
+    else
+        print_error "green_deployment.yaml not found"
+        return 1
+    fi
+}
+
+# Cleanup old version
+cleanup_old_version() {
+    local version_to_cleanup=$1
+    
+    print_warning "Cleaning up $version_to_cleanup version..."
+    
+    # Scale down the old deployment
+    kubectl scale deployment "$APP_NAME-$version_to_cleanup" -n "$NAMESPACE" --replicas=0 2>/dev/null || true
+    
+    # Wait a bit then delete the deployment
+    sleep 30
+    kubectl delete deployment "$APP_NAME-$version_to_cleanup" -n "$NAMESPACE" --ignore-not-found=true
+    
+    print_success "Cleaned up $version_to_cleanup version"
+}
+
+# Rollback to previous version
+rollback() {
+    local current_version=$(get_current_version)
+    local rollback_version
+    
+    if [ "$current_version" = "green" ]; then
+        rollback_version="blue"
+    else
+        rollback_version="green"
+    fi
+    
+    print_warning "Rolling back from $current_version to $rollback_version..."
+    
+    # Check if rollback version exists
+    if kubectl get deployment "$APP_NAME-$rollback_version" -n "$NAMESPACE" &> /dev/null; then
+        # Scale up rollback version if needed
+        kubectl scale deployment "$APP_NAME-$rollback_version" -n "$NAMESPACE" --replicas=3
+        
+        # Wait for rollback deployment to be ready
+        if wait_for_deployment "$APP_NAME-$rollback_version" 120; then
+            # Switch traffic back
+            switch_traffic "$rollback_version"
+            print_success "Rollback to $rollback_version completed"
+        else
+            print_error "Rollback failed - $rollback_version deployment not ready"
+            return 1
+        fi
+    else
+        print_error "Cannot rollback - $rollback_version deployment not found"
+        return 1
+    fi
+}
+
+# Check logs
+check_logs() {
+    local version=${1:-$(get_current_version)}
+    local lines=${2:-50}
+    
+    print_status "Checking logs for $version version (last $lines lines)..."
+    
+    # Get pods for the version
+    local pods=$(kubectl get pods -l "app=$APP_NAME,version=$version" -n "$NAMESPACE" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null)
+    
+    if [ -z "$pods" ]; then
+        print_warning "No pods found for $version version"
+        return 1
+    fi
+    
+    for pod in $pods; do
+        echo
+        print_status "Logs for pod $pod:"
+        kubectl logs "$pod" -n "$NAMESPACE" --tail="$lines" 2>/dev/null || print_warning "Could not get logs for $pod"
+    done
+}
+
+# Performance test
+performance_test() {
+    local duration=${1:-30}
+    local connections=${2:-10}
+    
+    print_status "Running performance test for ${duration}s with $connections connections..."
+    
+    # Get service IP
+    local service_ip=$(kubectl get service "$SERVICE_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.clusterIP}')
+    
+    if [ -z "$service_ip" ]; then
+        print_error "Could not get service IP"
+        return 1
+    fi
+    
+    # Run performance test using wrk if available, otherwise use curl in a loop
+    if command -v wrk &> /dev/null; then
+        kubectl run perf-test-$RANDOM --image=williamyeh/wrk --rm -i --restart=Never --timeout=60s \
+            -- -t4 -c"$connections" -d"${duration}s" "http://$service_ip$HEALTH_CHECK_PATH"
+    else
+        print_status "Running basic load test with curl..."
+        kubectl run curl-test-$RANDOM --image=curlimages/curl --rm -i --restart=Never --timeout=60s \
+            -- sh -c "for i in \$(seq 1 20); do curl -s http://$service_ip$HEALTH_CHECK_PATH > /dev/null && echo 'Request \$i: OK' || echo 'Request \$i: FAILED'; sleep 1; done"
+    fi
+}
+
+# Usage function
+usage() {
+    echo "Usage: $0 {deploy|switch|rollback|status|logs|test|cleanup|health-check} [options]"
+    echo
+    echo "Commands:"
+    echo "  deploy          Deploy green version and switch traffic if healthy"
+    echo "  switch <version> Switch traffic to blue or green"
+    echo "  rollback        Rollback to previous version"
+    echo "  status          Show current deployment status"
+    echo "  logs [version] [lines] Show logs for version (default: current, 50 lines)"
+    echo "  test [duration] [connections] Run performance test"
+    echo "  cleanup <version> Cleanup specified version"
+    echo "  health-check [service] Check health of service"
+    echo
+    echo "Examples:"
+    echo "  $0 deploy"
+    echo "  $0 switch green"
+    echo "  $0 logs blue 100"
+    echo "  $0 test 60 20"
+}
+
+# Main execution
+main() {
+    # Check required commands
+    check_command kubectl
+    
+    local command=${1:-status}
+    
+    case $command in
+        deploy)
+            print_status "Starting blue-green deployment process..."
+            show_status
+            
+            if deploy_green; then
+                print_status "Green deployment successful, switching traffic..."
+                switch_traffic "green"
+                
+                # Final health check
+                sleep 10
+                if health_check "$SERVICE_NAME"; then
+                    print_success "Blue-green deployment completed successfully!"
+                    show_status
+                    
+                    # Ask if user wants to cleanup blue version
+                    echo
+                    print_warning "Green deployment is active. You can now cleanup the blue version with:"
+                    print_warning "$0 cleanup blue"
+                else
+                    print_error "Post-switch health check failed, rolling back..."
+                    rollback
+                fi
+            else
+                print_error "Green deployment failed"
+                exit 1
+            fi
+            ;;
+        switch)
+            local version=${2}
+            if [ -z "$version" ]; then
+                print_error "Please specify version (blue or green)"
+                usage
+                exit 1
+            fi
+            switch_traffic "$version"
+            sleep 10
+            health_check "$SERVICE_NAME"
+            show_status
+            ;;
+        rollback)
+            rollback
+            ;;
+        status)
+            show_status
+            ;;
+        logs)
+            check_logs "$2" "$3"
+            ;;
+        test)
+            performance_test "$2" "$3"
+            ;;
+        cleanup)
+            local version=${2}
+            if [ -z "$version" ]; then
+                print_error "Please specify version to cleanup (blue or green)"
+                exit 1
+            fi
+            cleanup_old_version "$version"
+            ;;
+        health-check)
+            local service=${2:-$SERVICE_NAME}
+            health_check "$service"
+            ;;
+        *)
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"
