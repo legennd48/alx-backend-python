@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Check if a command exists
+check_command() {
+    command -v "$1" &> /dev/null || { echo "$1 not found. Install it."; exit 1; }
+}
+
+check_command kubectl
+check_command wrk
+
+# Show current pods
+kubectl get pods -l app=django-messaging-app
+
+# Scale deployment
+kubectl scale deployment django-messaging-app --replicas=3 || { echo "Scaling failed"; exit 1; }
+
+# Wait for pods to be ready (max 120s)
+timeout=120; elapsed=0
+while [ $elapsed -lt $timeout ]; do
+    ready=$(kubectl get pods -l app=django-messaging-app --no-headers | grep "Running" | wc -l)
+    [ "$ready" -eq 3 ] && break
+    sleep 5; elapsed=$((elapsed + 5))
+done
+[ "$ready" -ne 3 ] && { echo "Timeout waiting for pods"; kubectl get pods -l app=django-messaging-app; exit 1; }
+
+# Show deployment and pods
+kubectl get pods -l app=django-messaging-app -o wide
+kubectl get deployment django-messaging-app
+
+# Get service info
+IP=$(kubectl get service django-messaging-service -o jsonpath='{.spec.clusterIP}')
+PORT=$(kubectl get service django-messaging-service -o jsonpath='{.spec.ports[0].port}')
+
+# Load test
+kubectl run load-test-pod --image=williamyeh/wrk --rm -i --restart=Never -- \
+    -t4 -c10 -d30s "http://$IP:$PORT/swagger/"
+
+# Resource usage
+if kubectl top nodes &> /dev/null; then
+    kubectl top nodes
+    kubectl top pods -l app=django-messaging-app
+else
+    kubectl get pods -l app=django-messaging-app -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,RESTARTS:.status.containerStatuses[0].restartCount,AGE:.metadata.creationTimestamp
+fi
+
+# Summary
+kubectl describe deployment django-messaging-app | grep -E "Replicas|Available|Ready"
+kubectl get endpoints django-messaging-service
+kubectl get pods -l app=django-messaging-app -o custom-columns=NAME:.metadata.name,STATUS:.status.phase,POD-IP:.status.podIP,NODE:.spec.nodeName
+
+echo "Done. To scale down: kubectl scale deployment django-messaging-app --replicas=1"
