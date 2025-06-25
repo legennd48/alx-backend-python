@@ -1,0 +1,42 @@
+#!/bin/bash
+
+echo "=== Kubernetes Cluster Setup Script ==="
+
+# Check if minikube is installed
+if [ -z "$(command -v minikube)" ] || [ -z "$(command -v kubectl)" ]; then
+    echo "Minikube or kubectl is not installed. Please install them first."
+    exit 1
+fi
+
+echo "Minikube and kubectl are installed"
+
+# Check if minikube is already running
+if [ "$(minikube status | grep -q "Running")" ]; then
+    echo "Minikube cluster is already running"
+else
+    echo "Starting Minikube cluster..."
+    minikube start
+    if [ $? -ne 0 ]; then
+        echo "Failed to start Minikube. Please check your installation."
+        exit 1
+    fi
+    echo "Minikube started successfully"
+fi
+
+echo ""
+echo "=== Verifying cluster with kubectl cluster-info ==="
+kubectl cluster-info
+
+if [ $? -eq 0 ]; then
+    echo "Cluster is running and accessible"
+else
+    echo "Failed to connect to cluster"
+    exit 1
+fi
+
+echo ""
+echo "=== Retrieving available pods ==="
+kubectl get pods --all-namespaces
+
+echo ""
+echo "Script completed successfully!"
