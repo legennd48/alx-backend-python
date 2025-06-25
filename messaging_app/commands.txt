@@ -1,0 +1,41 @@
+# Kubernetes Commands Used for Django Messaging App Deployment
+
+## 1. Start Minikube
+minikube start
+
+## 2. Apply Deployment and Service Configuration
+kubectl apply -f deployment.yaml
+
+## 3. Enable NGINX Ingress Controller
+minikube addons enable ingress
+
+## 4. Apply Ingress Configuration
+kubectl apply -f ingress.yaml
+
+## 5. Update ALLOWED_HOSTS for Django App
+kubectl set env deployment/django-messaging-app ALLOWED_HOSTS="localhost,127.0.0.1,messaging-app.local,192.168.49.2"
+
+## 6. Scale the Application (using custom script)
+./kubctl-0x01
+
+## 7. Check Status Commands
+kubectl get pods
+kubectl get services
+kubectl get ingress
+kubectl describe ingress django-messaging-ingress
+
+## 8. Test the Application
+# Add to /etc/hosts: 192.168.49.2 messaging-app.local
+curl -H "Host: messaging-app.local" http://192.168.49.2/api/
+curl -H "Host: messaging-app.local" http://192.168.49.2/admin/
+curl -H "Host: messaging-app.local" http://192.168.49.2/swagger/
+
+## 9. Troubleshooting Commands
+kubectl logs pod/django-messaging-app-<pod-id>
+kubectl logs -n ingress-nginx ingress-nginx-controller-<controller-id>
+kubectl exec -it pod/django-messaging-app-<pod-id> -- curl http://localhost:8000/api/
+
+## 10. Clean Up Commands
+kubectl delete -f ingress.yaml
+kubectl delete -f deployment.yaml
+minikube stop

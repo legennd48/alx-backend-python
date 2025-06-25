@@ -86,7 +86,7 @@ spec:
         - name: DEBUG
           value: "True"
         - name: ALLOWED_HOSTS
-          value: "*"
+          value: "localhost,127.0.0.1,192.168.49.2,messaging-app.local,api.messaging-app.local,django-messaging-service"
         - name: DB_HOST
           value: "db"
         - name: DB_PORT
