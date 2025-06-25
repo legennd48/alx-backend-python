@@ -1,0 +1,79 @@
+# Green Deployment - New Version for Blue-Green Deployment Strategy
+# This represents the new version being deployed alongside the blue version
+# Database is shared between blue and green deployments
+# Green Deployment - New Version
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-messaging-app-green
+  labels:
+    app: django-messaging-app
+    version: green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: django-messaging-app
+      version: green
+  template:
+    metadata:
+      labels:
+        app: django-messaging-app
+        version: green
+    spec:
+      initContainers:
+      - name: wait-for-db
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z db 3306; do echo waiting for db; sleep 2; done;']
+      containers:
+      - name: django-app
+        image: messaging-app:latest  # In real scenario, this would be messaging-app:v2.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DEBUG
+          value: "True"
+        - name: ALLOWED_HOSTS
+          value: "*,192.168.49.2,messaging-app.local,localhost"
+        - name: DB_HOST
+          value: "db"
+        - name: DB_PORT
+          value: "3306"
+        - name: MYSQL_DATABASE
+          value: "messaging_db"
+        - name: MYSQL_USER
+          value: "messaging_user"
+        - name: MYSQL_PASSWORD
+          value: "Icu.i4cu"
+        - name: MYSQL_ROOT_PASSWORD
+          value: "root"
+        # Add environment variable to distinguish green version
+        - name: APP_VERSION
+          value: "green-v2.0"
+        - name: DEPLOYMENT_COLOR
+          value: "green"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        # Health checks for green deployment
+        livenessProbe:
+          httpGet:
+            path: /admin/
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /admin/
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
