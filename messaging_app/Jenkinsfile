@@ -2,6 +2,7 @@ pipeline {
     agent {
         docker {
             image 'python:3.9-slim'
+            args '-u root'  // Run as root to install packages if needed
         }
     }
 
@@ -11,9 +12,11 @@ pipeline {
                 checkout scm
             }
         }
+
         stage('Install dependencies') {
             steps {
                 sh '''
+                    cd messaging_app
                     python -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
@@ -21,18 +24,34 @@ pipeline {
                 '''
             }
         }
+
         stage('Run Tests') {
             steps {
                 sh '''
+                    cd messaging_app
                     . venv/bin/activate
-                    pytest --junitxml=pytest-report.xml
+                    pytest --junitxml=pytest-report.xml -v
                 '''
             }
             post {
                 always {
-                    junit 'pytest-report.xml'
+                    // Archive test results
+                    junit 'messaging_app/pytest-report.xml'
                 }
             }
+        }
+    }
+    
+    post {
+        always {
+            // Clean up workspace
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
