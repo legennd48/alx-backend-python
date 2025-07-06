@@ -1,0 +1,57 @@
+pipeline {
+    agent {
+        docker {
+            image 'python:3.9-slim'
+            args '-u root'
+        }
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Install dependencies') {
+            steps {
+                sh '''
+                    cd messaging_app
+                    python -m venv venv
+                    . venv/bin/activate
+                    pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh '''
+                    cd messaging_app
+                    . venv/bin/activate
+                    pytest --junitxml=pytest-report.xml -v
+                '''
+            }
+            post {
+                always {
+                    // Archive test results
+                    junit 'messaging_app/pytest-report.xml'
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Clean up workspace
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
