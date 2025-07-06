@@ -1,57 +1,32 @@
 pipeline {
-    agent {
-        docker {
-            image 'python:3.9-slim'
-            args '-u root'
-        }
-    }
+    agent any
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git credentialsId: 'github_cred',
+                url: 'https://github.com/legennd48/alx-backend-python.git',
+                git branch: 'main'
             }
         }
 
-        stage('Install dependencies') {
+    stage('Install dependencies') {
             steps {
-                sh '''
-                    cd messaging_app
-                    python -m venv venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
+                sh 'python3 -m venv .venv'
+                sh '. .venv/bin/activate && pip install --upgrade pip'
+                sh '. .venv/bin/activate && pip install -r messaging_app/requirements.txt'
             }
         }
 
-        stage('Run Tests') {
+    stage('Run Tests') {
             steps {
-                sh '''
-                    cd messaging_app
-                    . venv/bin/activate
-                    pytest --junitxml=pytest-report.xml -v
-                '''
-            }
-            post {
-                always {
-                    // Archive test results
-                    junit 'messaging_app/pytest-report.xml'
-                }
+                sh '. .venv/bin/activate && pytest --junitxml=report.xml'
             }
         }
-    }
-    
-    post {
-        always {
-            // Clean up workspace
-            cleanWs()
+
+    stage('Save Results') {
+            steps {
+                junit 'report.xml'
+            }
         }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed!'
-        }
-    }
 }
