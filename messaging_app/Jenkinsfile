@@ -9,6 +9,7 @@ pipeline {
                 git branch: 'master'
             }
         }
+    }
 
     stage('Install dependencies') {
             steps {
