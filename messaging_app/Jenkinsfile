@@ -1,26 +1,20 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.9-slim'
+        }
+    }
 
     stages {
-        stage('Install Python') {
-            steps {
-                sh '''
-                    apt-get update
-                    apt-get install -y python3 python3-venv python3-pip
-                '''
-            }
-        }
         stage('Checkout') {
             steps {
-                // Pull code from GitHub
                 checkout scm
             }
         }
         stage('Install dependencies') {
             steps {
-                // Use ShiningPanda to create a virtualenv and install requirements
                 sh '''
-                    python3 -m venv venv
+                    python -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
@@ -29,7 +23,6 @@ pipeline {
         }
         stage('Run Tests') {
             steps {
-                // Run pytest and generate JUnit XML report
                 sh '''
                     . venv/bin/activate
                     pytest --junitxml=pytest-report.xml
@@ -37,7 +30,6 @@ pipeline {
             }
             post {
                 always {
-                    // Publish test results in Jenkins
                     junit 'pytest-report.xml'
                 }
             }
